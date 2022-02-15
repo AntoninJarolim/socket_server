@@ -42,7 +42,7 @@ int main(int argc, char const *argv[])
     int port = parseArgs(argc, argv);
 
     int server_fd, remoteSocket;
-    long valread;
+
     struct sockaddr_in address;
     int addrlen = sizeof(address);
 
@@ -56,7 +56,7 @@ int main(int argc, char const *argv[])
         remoteSocket = acceptConnection(server_fd, &address, &addrlen);
 
         char buffer[BUFFERSIZE] = {0};
-        valread = read(remoteSocket , buffer, BUFFERSIZE);
+        read(remoteSocket , buffer, BUFFERSIZE);
         printf("%s\n", buffer);
         char *http = parseUrl(buffer);
         char *msg = getResponse(http);
@@ -76,7 +76,7 @@ char *getResponse(char *http) {
     sprintf(response, "HTTP/1.1 200 OK"
                           "\nContent-Type: text/plain"
                           "\nContent-Length: %lu\n\n%s", strlen(msgBody), msgBody);
-
+    free(msgBody);
     free(http);
     return response;
 }
@@ -96,7 +96,10 @@ char *getMsgBody(const char *http) {
 }
 
 char *getNotValid() {
-    return "\"HTTP/1.1 400 Bad Request\\nContent-Type: text/plain\\nContent-Length: 12\\n\\nUrl does not exist!\"\n";
+    return "HTTP/1.1 400 Bad Request"
+           "\nContent-Type: text/plain"
+           "\nContent-Length: %lu\n\n"
+           "Url does not exist!";
 }
 
 char *getLoad() {
@@ -120,7 +123,10 @@ char *getLoad() {
 }
 
 char *getCpuName() {
-    return "Top procak pyco\n";
+    FILE* file = popen("cat /proc/cpuinfo | grep \"model name\" | head -n 1 | awk '...", "r");
+    char* name = (char*) malloc(sizeof(MAX_RESPONSE_SIZE) * sizeof(char ));
+    fgets(name, MAX_RESPONSE_SIZE, file);
+    return name;
 }
 
 char *getUserName() {
@@ -175,7 +181,7 @@ struct sockaddr_in createAdr(int port, struct sockaddr_in *address) {
     (*address).sin_addr.s_addr = INADDR_ANY;
     (*address).sin_port = htons(port );
     memset((*address).sin_zero, '\0', sizeof (*address).sin_zero);
--
+
     return (*address);
 }
 
