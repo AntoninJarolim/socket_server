@@ -62,7 +62,6 @@ int main(int argc, char const *argv[])
         char *http = parseUrl(buffer);
         char *msg = getResponse(http);
         write(remoteSocket , msg , strlen(msg));
-        printf("------------------Hello message sent-------------------");
         close(remoteSocket);
     }
     return 0;
@@ -97,10 +96,7 @@ char *getMsgBody(const char *http) {
 }
 
 char *getNotValid() {
-    return "HTTP/1.1 400 Bad Request"
-           "\nContent-Type: text/plain"
-           "\nContent-Length: %lu\n\n"
-           "Url does not exist!";
+    return "HTTP/1.1 400 Bad Request";
 }
 char *execute(char *command){
     FILE* file = popen(command, "r");
