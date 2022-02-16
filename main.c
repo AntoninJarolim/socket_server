@@ -1,4 +1,5 @@
 // Server side C program to demonstrate HTTP Server programming
+#define _DEFAULT_SOURCE
 #include <stdio.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -101,38 +102,47 @@ char *getNotValid() {
            "\nContent-Length: %lu\n\n"
            "Url does not exist!";
 }
-
-char *getLoad() {
-    /*
-    PrevIdle = previdle + previowait
-    Idle = idle + iowait
-
-    PrevNonIdle = prevuser + prevnice + prevsystem + previrq + prevsoftirq + prevsteal
-    NonIdle = user + nice + system + irq + softirq + steal
-
-    PrevTotal = PrevIdle + PrevNonIdle
-    Total = Idle + NonIdle
-
-# differentiate: actual value minus the previous one
-    totald = Total - PrevTotal
-    idled = Idle - PrevIdle
-
-    CPU_Percentage = (totald - idled)/totald
-            */
-    return "666%\n";
-}
-
-char *getCpuName() {
-    FILE* file = popen("cat /proc/cpuinfo | grep \"model name\" | head -n 1 | awk '...", "r");
-    char* name = (char*) malloc(sizeof(MAX_RESPONSE_SIZE) * sizeof(char ));
+char *execute(char *command){
+    FILE* file = popen(command, "r");
+    char* name = (char*) calloc(sizeof(char), MAX_RESPONSE_SIZE);
     fgets(name, MAX_RESPONSE_SIZE, file);
     return name;
 }
+char *getLoad() {
+    FILE* stream = popen("cat /proc/stat | head -1", "r");
+    int user, nice, system, idle, iowait, irq, softirq, steal, guest, guest_nice = 0;
+    sleep(1);
+    int userPre, nicePre, systemPre, idlePre, iowaitPre, irqPre, softirqPre, stealPre, guestPre, guest_nicePre = 0;
 
-char *getUserName() {
-    return "/merlin/fadopyco\n";
+    fscanf(stream, "cpu  %d %d %d %d %d %d %d %d %d %d", &userPre, &nicePre, &systemPre, &idlePre, &iowaitPre, &irqPre, &softirqPre, &stealPre, &guestPre, &guest_nicePre);
+    usleep(200  );
+    stream = popen("cat /proc/stat | head -1", "r");
+    fscanf(stream, "cpu  %d %d %d %d %d %d %d %d %d %d", &user, &nice, &system, &idle, &iowait, &irq, &softirq, &steal, &guest, &guest_nice);
+
+    int PrevIdle = idlePre + iowaitPre;
+    int Idle = idle + iowait;
+
+    int PrevNonIdle = userPre + nicePre + systemPre + irqPre + softirqPre + stealPre;
+    int NonIdle = user + nice + system + irq + softirq + steal;
+
+    int PrevTotal = PrevIdle + PrevNonIdle;
+    int Total = Idle + NonIdle;
+
+    int totald = Total - PrevTotal;
+    int idled = Idle - PrevIdle;
+    float cpuPercentage = (totald - idled) / (float)totald * 100;
+    char* response = (char*) calloc(sizeof(char), MAX_RESPONSE_SIZE);
+    gcvt(cpuPercentage, 5, response);
+    return response;
 }
 
+char *getCpuName() {
+    return execute("cat /proc/cpuinfo | grep \"model name\" | head -n 1 | awk -F \":\" '{print $2}' | awk 'sub(/^\\s*/,\"\")'");
+}
+
+char *getUserName() {
+    return execute("cat /proc/sys/kernel/hostname");
+}
 char *parseUrl(const char *string){
     size_t len = strlen(string);
     if(len < 10){
