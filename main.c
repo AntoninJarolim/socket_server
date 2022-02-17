@@ -20,63 +20,70 @@ int getSocket();
 char *parseUrl(const char *string);
 void startListening(int server_fd);
 int acceptConnection(int server_fd, struct sockaddr_in *address, int *addrlen);
-
 char *getResponse(char *http);
-
 char *getUserName();
-
 char *getCpuName();
-
 char *getLoad();
-
 char *getNotValid();
-
 char *getMsgBody(const char *http);
-
-void failure(const char* err){
-    fprintf(stderr,"%s", err);
-    exit(EXIT_FAILURE);
-}
+void failure(const char* err);
 
 int main(int argc, char const *argv[])
 {
+    // Get port from args
     int port = parseArgs(argc, argv);
 
     int server_fd, remoteSocket;
-
     struct sockaddr_in address;
     int addrlen = sizeof(address);
 
+    // Get new socket
     server_fd = getSocket();
+
+    // Create address for server
     address = createAdr(port, &address);
+
+    // Bind adress to socket
     address = bindAdr(server_fd, &address);
+
+    // Start comunication
     startListening(server_fd);
+
     while(1)
     {
+        //
         printf("\n+++++++ Waiting for new connection ++++++++\n\n");
         remoteSocket = acceptConnection(server_fd, &address, &addrlen);
 
         char buffer[BUFFERSIZE] = {0};
-        read(remoteSocket , buffer, BUFFERSIZE);
-        printf("%s\n", buffer);
+        read(remoteSocket, buffer, BUFFERSIZE);
+        printf("Received:\n%s\n", buffer);
         char *http = parseUrl(buffer);
         char *msg = getResponse(http);
-        write(remoteSocket , msg , strlen(msg));
+        write(remoteSocket, msg, strlen(msg));
+        printf("Sending:\n%s\n", msg);
         close(remoteSocket);
+        free(msg);
     }
     return 0;
 }
-
+void failure(const char* err){
+    fprintf(stderr,"%s", err);
+    exit(EXIT_FAILURE);
+}
 char *getResponse(char *http) {
     char *response = malloc(sizeof(char) * MAX_RESPONSE_SIZE);
     char *msgBody = getMsgBody(http);
     if(msgBody == NULL){
-        return getNotValid();
+        char *err = getNotValid();
+        sprintf(response, "%s", err);
     }
-    sprintf(response, "HTTP/1.1 200 OK"
+    else{
+        sprintf(response, "HTTP/1.1 200 OK"
                           "\nContent-Type: text/plain"
                           "\nContent-Length: %lu\n\n%s", strlen(msgBody), msgBody);
-    free(msgBody);
+        free(msgBody);
+    }
     free(http);
     return response;
 }
@@ -102,18 +109,23 @@ char *execute(char *command){
     FILE* file = popen(command, "r");
     char* name = (char*) calloc(sizeof(char), MAX_RESPONSE_SIZE);
     fgets(name, MAX_RESPONSE_SIZE, file);
+    pclose(file);
     return name;
 }
+FILE *getLoadStats(){
+    return popen("cat /proc/stat | head -1", "r");
+}
 char *getLoad() {
-    FILE* stream = popen("cat /proc/stat | head -1", "r");
+    FILE* stream = getLoadStats();
     int user, nice, system, idle, iowait, irq, softirq, steal, guest, guest_nice = 0;
-    sleep(1);
     int userPre, nicePre, systemPre, idlePre, iowaitPre, irqPre, softirqPre, stealPre, guestPre, guest_nicePre = 0;
 
     fscanf(stream, "cpu  %d %d %d %d %d %d %d %d %d %d", &userPre, &nicePre, &systemPre, &idlePre, &iowaitPre, &irqPre, &softirqPre, &stealPre, &guestPre, &guest_nicePre);
     usleep(200  );
-    stream = popen("cat /proc/stat | head -1", "r");
+    pclose(stream);
+    stream = getLoadStats();
     fscanf(stream, "cpu  %d %d %d %d %d %d %d %d %d %d", &user, &nice, &system, &idle, &iowait, &irq, &softirq, &steal, &guest, &guest_nice);
+    pclose(stream);
 
     int PrevIdle = idlePre + iowaitPre;
     int Idle = idle + iowait;
@@ -148,7 +160,7 @@ char *parseUrl(const char *string){
     // Check starting with 'GET '
     char *pre = "GET ";
     char actualPre[5];
-    memcpy( actualPre, string, 4);
+    memcpy(actualPre, string, 4);
     actualPre[4] = '\0';
     if(strcmp(pre, actualPre) != 0){
         return "not GET header";
@@ -162,8 +174,8 @@ char *parseUrl(const char *string){
     }
 
     int maxHttpSize = 100;
-    char *http = (char*)calloc( maxHttpSize, sizeof (char));
-    memcpy( http, &string[init], lenToSpace);
+    char *http = (char*) calloc(maxHttpSize, sizeof (char));
+    memcpy(http, &string[init], lenToSpace);
     return http;
 }
 int acceptConnection(int server_fd, struct sockaddr_in *address, int *addrlen) {
