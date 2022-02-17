@@ -1,5 +1,6 @@
 # Socket server from scratch
 VUT FIT - IPK course  
+17.2.2022
 
 Server is listening on `localhost` at given port. Returns informations about system on valid requests.  
 List of valid request names:
@@ -9,11 +10,13 @@ List of valid request names:
 ## Usage
 ### Run
 `hinfosvc <port>`  
-Run example:  
+####Run example:  
 `./hinfosvc 12345 &`  
-Valid URL example:   
-`http://localhost:12345/cpu-name`   
 
+####Valid URL examples:   
+`http://localhost:12345/cpu-name`   
+`http://localhost:12345/hostname`   
+`http://localhost:12345/load`
 
 ## Documentation
 Main code of the program is in the `main()` function. It calls function to _get new socket_, _create address for server_, _bind adress to socket_ and _to start comunication_ in this exact order. Next comes never ending while, which repeats this steps:
